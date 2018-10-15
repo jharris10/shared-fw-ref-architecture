@@ -128,7 +128,7 @@
             }
         },
         "Username": {
-            "defaultValue": "paloalto",
+            "defaultValue": "",
             "type": "String"
         },
         "Password": {
