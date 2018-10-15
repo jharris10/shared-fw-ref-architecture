@@ -181,71 +181,19 @@
                 "description": "The subdirectory hosting the bootstrap files. Only required if hosting multiple bootstrap directories on the same share"
             }
         },
-        "subscriptionId": {
-            "type": "string",
-            "metadata": {
-                "description": "Account subscription id - https://blogs.msdn.microsoft.com/mschray/2016/03/18/getting-your-azure-subscription-guid-new-portal/"
-            }
-        },
-        "appID": {
-            "type": "string",
-            "metadata": {
-                "description": "Registered App ID - https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal"
-            }
-        },
-        "appSecret": {
-            "type": "securestring",
-            "metadata": {
-                "description": "Client Secret for service principal - https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal"
-            }
-        },
-        "TenantId": {
-            "type": "string",
-            "metadata": {
-                "description": "Tenant ID for service principal"
-            }
-        },
-        "panoramaIP": {
-            "type": "string",
-            "metadata": {
-                "description": "IP Address of the Panorama Management server. Should be reachable by both the hub and spoke"
-            }
-        },
-        "panoramaApiKey": {
-            "type": "securestring",
-            "metadata": {
-                "description": "API key to access Panorama Management server"
-            }
-        },
+        "publicIPAddressName": {
+            "type": "string"
+        }
     },
     "variables": {
         "uniqueId": "[uniqueString(resourceGroup().id)]",
         "customDataField": "[concat('storage-account=', parameters('BootstrapStorageAccount'), ',access-key=', parameters('StorageAccountAccessKey'), ',file-share=', parameters('StorageAccountFileShare'),',share-directory=', parameters('StorageAccountFileShareDirectory'))]",
         "rtProtectedSubnetName": "[concat('RT-',parameters('protectedSubnetName'))]",
-        "vmdev": "VM-DEV",
-        "space": " "
+        "space": " ",
+        "lbId": "[resourceId('Microsoft.Network/loadBalancers/', 'LB-Ingress')]"
     },
     "resources": [
-        {
-            "name": "[concat(variables('vmdev'),'/vm-customscript')]",
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "apiVersion": "2017-03-30",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[concat('Microsoft.Compute/virtualMachines/', variables('vmdev'))]"
-            ],
-            "properties": {
-                "publisher": "Microsoft.Azure.Extensions",
-                "type": "CustomScript",
-                "typeHandlerVersion": "2.0",
-                "settings": {
-                    "fileUris": [
-                        "https://raw.githubusercontent.com/jjharris10/azure-fw-east-west/master/build-dev.sh"
-                    ],
-                    "commandToExecute": "[concat('/bin/bash ./start-hub.sh', variables('space'), parameters('subscriptionId'), variables('space'), parameters('appID'), variables('space'), parameters('appSecret'), variables('space'), parameters('TenantId'), variables('space'), parameters('panoramaIP'), variables('space'), parameters('panoramaApiKey'), variables('space'), variables('space'), '&')]"
-                }
-            }
-        },
+
         {
             "type": "Microsoft.Network/routeTables",
             "name": "[variables('rtProtectedSubnetName')]",
@@ -288,7 +236,6 @@
             "resources": [],
             "dependsOn": []
         },
-
         {
             "apiVersion": "2016-06-01",
             "condition": "[equals(parameters('vnetNewOrExisting'),'new')]",
@@ -456,6 +403,92 @@
             "dependsOn": []
         },
         {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "Ingress-LB-Pub",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('publiclb', variables('uniqueId'))]"
+                }
+            },
+            "resources": [],
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "LB-Ingress",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LB-Ingress-FrontEnd",
+                        "properties": {
+                                "publicIPAddress": {
+                                    "id": "[resourceId('ref-arch', 'Microsoft.Network/publicIPAddresses', 'Ingress-LB-Pub')]"
+                                }
+                            }
+                        }
+                    
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "BackendPool"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "Allow-80-in",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers','LB-Ingress'), '/frontendIPConfigurations/LB-Ingress-FrontEnd')]"
+                            },
+                            "protocol": "Tcp",
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "loadDistribution": "SourceIPProtocol",
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Ingress'), '/backendAddressPools/BackendPool')]"
+                            },
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Ingress'), '/probes/TCP-22')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "TCP-22",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 22,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ],
+                "inboundNatRules": [],
+                "outboundNatRules": [],
+                "inboundNatPools": []
+            },
+            "resources": [],
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'Ingress-LB-Pub')]"
+            ]
+        },
+        {
             "type": "Microsoft.Network/loadBalancers",
             "name": "LB-Egress",
             "apiVersion": "2017-08-01",
@@ -585,7 +618,8 @@
             "name": "INT-FW1-Untrust",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+                "[resourceId('Microsoft.Network/loadBalancers/', 'LB-Ingress')]"
             ],
             "properties": {
                 "enableIPForwarding": true,
@@ -600,7 +634,12 @@
                             "primary": true,
                             "subnet": {
                                 "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('untrustSubnetName'))]"
-                            }
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(variables('lbId'), '/backendAddressPools/BackendPool')]"
+                                }
+                            ]
                         }
                     }
                 ]
@@ -612,7 +651,8 @@
             "name": "INT-FW2-Untrust",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'LB-Ingress')]"
             ],
             "properties": {
                 "enableIPForwarding": true,
@@ -627,6 +667,11 @@
                             "subnet": {
                                 "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('untrustSubnetName'))]"
                             },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(variables('lbId'), '/backendAddressPools/BackendPool')]"
+                                }
+                            ],
                             "dependsOn": [
                                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Untrust')]"
                             ]
@@ -1032,6 +1077,7 @@
             "resources": [],
             "dependsOn": []
         },
+
         {
             "apiVersion": "2016-04-30-preview",
             "condition": "[equals(parameters('bootstrapFirewall'),'yes')]",
