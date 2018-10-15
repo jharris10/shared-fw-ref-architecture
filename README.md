@@ -19,6 +19,9 @@ It includes following components:
  - Bootstraping
  - BYOL or PAYG Licensing
  and creates all the infrastructure and appropriate UDRs.
+
+ For information on how to bootstrap the VM-Series firewall running PAN-OS 8.1 and up in Azure see [Bootstrap Instructions](https://www.paloaltonetworks.com/documentation/81/virtualization/virtualization/bootstrap-the-vm-series-firewall/bootstrap-the-vm-series-firewall-in-azure#idd51f75b8-e579-44d6-a809-2fafcfe4b3b6)
+
  
  If bootstraping with default configuration file is used default credentials are:
  - Username: paloalto
