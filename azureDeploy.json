@@ -180,9 +180,6 @@
             "metadata": {
                 "description": "The subdirectory hosting the bootstrap files. Only required if hosting multiple bootstrap directories on the same share"
             }
-        },
-        "publicIPAddressName": {
-            "type": "string"
         }
     },
     "variables": {
