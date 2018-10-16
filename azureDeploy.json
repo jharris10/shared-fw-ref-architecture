@@ -431,7 +431,7 @@
                         "name": "LB-Ingress-FrontEnd",
                         "properties": {
                                 "publicIPAddress": {
-                                    "id": "[resourceId('ref-arch', 'Microsoft.Network/publicIPAddresses', 'Ingress-LB-Pub')]"
+                                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'Ingress-LB-Pub')]"
                                 }
                             }
                         }
