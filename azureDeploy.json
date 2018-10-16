@@ -1367,7 +1367,7 @@
             ],
             "properties": {
                 "hardwareProfile": {
-                    "vmSize": "Standard_DS1"
+                    "vmSize": "[parameters('vmSize')]"
                 },
                 "osProfile": {
                     "computerName": "VM-Dev",
