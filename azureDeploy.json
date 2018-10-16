@@ -180,6 +180,17 @@
             "metadata": {
                 "description": "The subdirectory hosting the bootstrap files. Only required if hosting multiple bootstrap directories on the same share"
             }
+        },
+        "deploytestVM" :{
+            "allowedValues": [
+                "no",
+                "yes"
+            ],
+            "defaultValue": "no",
+            "type": "String",
+            "metadata": {
+                "description": "Select yes to deploy a test VM on the internal network"
+            }
         }
     },
     "variables": {
@@ -1359,6 +1370,7 @@
         },
         {
             "apiVersion": "2016-04-30-preview",
+            "condition": "[equals(parameters('deploytestVM'),'yes')]",
             "type": "Microsoft.Compute/virtualMachines",
             "name": "VM-Dev",
             "location": "[resourceGroup().location]",
