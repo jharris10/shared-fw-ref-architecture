@@ -106,6 +106,20 @@
                 "description": "Trust Subnet address CIDR"
             }
         },
+        "vpnSubnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the VPN Subnet"
+            },
+            "defaultValue": "VPN"
+        },
+        "vpnSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.3.0/24",
+            "metadata": {
+                "description": "VPN Subnet address CIDR"
+            }
+        },
         "protectedSubnetName": {
             "type": "string",
             "metadata": {
@@ -123,6 +137,13 @@
         "egressLBFrontEndAddress": {
             "type": "string",
             "defaultValue": "10.0.2.100",
+            "metadata": {
+                "description": "IP Address of the inbound load balancer in the Trust network"
+            }
+        },
+        "egressLBVPNFrontEndAddress": {
+            "type": "string",
+            "defaultValue": "10.0.3.100",
             "metadata": {
                 "description": "IP Address of the inbound load balancer in the Trust network"
             }
@@ -246,9 +267,9 @@
         },
         {
             "apiVersion": "2016-06-01",
-            "condition": "[equals(parameters('vnetNewOrExisting'),'new')]",
             "type": "Microsoft.Network/virtualNetworks",
             "name": "[parameters('virtualNetworkName')]",
+            "condition": "[equals(parameters('vnetNewOrExisting'),'new')]",
             "location": "[resourceGroup().location]",
             "properties": {
                 "addressSpace": {
@@ -279,6 +300,15 @@
                         "name": "[parameters('trustSubnetName')]",
                         "properties": {
                             "addressPrefix": "[parameters('trustSubnetAddressPrefix')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'Allow-All')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[parameters('vpnSubnetName')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vpnSubnetAddressPrefix')]",
                             "networkSecurityGroup": {
                                 "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'Allow-All')]"
                             }
@@ -515,11 +545,24 @@
                                 "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('trustSubnetName'))]"
                             }
                         }
+                    },
+                    {
+                        "name": "LB-VPN-FrontEnd",
+                        "properties": {
+                            "privateIPAddress": "[parameters('egressLBVPNFrontEndAddress')]",
+                            "privateIPAllocationMethod": "Static",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('vpnSubnetName'))]"
+                            }
+                        }
                     }
                 ],
                 "backendAddressPools": [
                     {
                         "name": "AS-FW"
+                    },
+                    {
+                        "name": "VPN-AS-FW"
                     }
                 ],
                 "loadBalancingRules": [
@@ -537,6 +580,26 @@
                             "loadDistribution": "Default",
                             "backendAddressPool": {
                                 "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/backendAddressPools/AS-FW')]"
+                            },
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/probes/TCP-22')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Allow-VPN",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/frontendIPConfigurations/LB-VPN-FrontEnd')]"
+                            },
+                            "frontendPort": 0,
+                            "backendPort": 0,
+                            "enableFloatingIP": true,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "All",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/backendAddressPools/VPN-AS-FW')]"
                             },
                             "probe": {
                                 "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/probes/TCP-22')]"
@@ -717,6 +780,7 @@
                 ]
             }
         },
+
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/networkInterfaces",
@@ -745,6 +809,64 @@
                         "dependsOn": [
                             "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Trust')]"
                         ]
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "INT-FW1-VPN",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'LB-Egress')]"
+            ],
+            "properties": {
+                "enableIPForwarding": true,
+                "ipConfigurations": [
+                    {
+                        "name": "FW1-VPN",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('vpnSubnetName'))]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/backendAddressPools/VPN-AS-FW')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "INT-FW2-VPN",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'LB-Egress')]"
+            ],
+            "properties": {
+                "enableIPForwarding": true,
+                "ipConfigurations": [
+                    {
+                        "name": "FW2-VPN",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/',parameters('vpnSubnetName'))]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'LB-Egress'), '/backendAddressPools/VPN-AS-FW')]"
+                                }
+                            ]
+                        }
                     }
                 ]
             }
@@ -1085,6 +1207,7 @@
             "resources": [],
             "dependsOn": []
         },
+        
 
         {
             "apiVersion": "2016-04-30-preview",
@@ -1144,6 +1267,12 @@
                             "properties": {
                                 "primary": false
                             }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-VPN')]",
+                            "properties": {
+                                "primary": false
+                            }
                         }
                     ]
                 }
@@ -1154,6 +1283,7 @@
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Management')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Untrust')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Trust')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-VPN')]",
                 "[resourceId('Microsoft.Compute/availabilitySets', 'AS-FW')]"
             ]
         },
@@ -1215,6 +1345,12 @@
                             "properties": {
                                 "primary": false
                             }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-VPN')]",
+                            "properties": {
+                                "primary": false
+                            }
                         }
                     ]
                 }
@@ -1225,6 +1361,7 @@
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Management')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Untrust')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Trust')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-VPN')]",
                 "[resourceId('Microsoft.Compute/availabilitySets', 'AS-FW')]"
             ]
         },
@@ -1285,6 +1422,12 @@
                             "properties": {
                                 "primary": false
                             }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-VPN')]",
+                            "properties": {
+                                "primary": false
+                            }
                         }
                     ]
                 }
@@ -1295,6 +1438,7 @@
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Management')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Untrust')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-Trust')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW1-VPN')]",
                 "[resourceId('Microsoft.Compute/availabilitySets', 'AS-FW')]"
             ]
         },
@@ -1355,6 +1499,12 @@
                             "properties": {
                                 "primary": false
                             }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-VPN')]",
+                            "properties": {
+                                "primary": false
+                            }
                         }
                     ]
                 }
@@ -1365,6 +1515,7 @@
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Management')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Untrust')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-Trust')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', 'INT-FW2-VPN')]",
                 "[resourceId('Microsoft.Compute/availabilitySets', 'AS-FW')]"
             ]
         },
