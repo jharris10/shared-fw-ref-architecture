@@ -1,7 +1,7 @@
 # azure-fw-east-west
 # Palo Alto Networks LB Sandwitch for Azure Egress Security
 
-![alt text](https://raw.githubusercontent.com/jharris10/azure-fw-east-west/master/Architecture-Diagram.png)
+![alt text](https://raw.githubusercontent.com/jharris10/shared-fw-ref-architecture/master/Architecture-Diagram.png)
 
 [<img src="http://azuredeploy.net/deploybutton.png"/>](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjharris10%2Fshared-fw-ref-architecture%2Fmaster%2FazureDeploy.json)
 
