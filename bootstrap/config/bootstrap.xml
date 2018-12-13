@@ -137,6 +137,27 @@
                 <interface-management-profile>Health Probe</interface-management-profile>
               </layer3>
             </entry>
+            <entry name="ethernet1/3">
+              <layer3>
+                <ipv6>
+                  <neighbor-discovery>
+                    <router-advertisement>
+                      <enable>no</enable>
+                    </router-advertisement>
+                  </neighbor-discovery>
+                </ipv6>
+                <ndp-proxy>
+                  <enabled>no</enabled>
+                </ndp-proxy>
+                <dhcp-client>
+                  <create-default-route>no</create-default-route>
+                </dhcp-client>
+                <lldp>
+                  <enable>no</enable>
+                </lldp>
+                <interface-management-profile>Health Probe</interface-management-profile>
+              </layer3>
+            </entry>
           </ethernet>
         </interface>
         <profiles>
@@ -353,7 +374,7 @@
                       <unicast/>
                     </route-table>
                   </entry>
-                  <entry name="web">
+                  <entry name="Vnets">
                     <path-monitor>
                       <enable>no</enable>
                       <failure-condition>any</failure-condition>
@@ -366,7 +387,7 @@
                       <profile>None</profile>
                     </bfd>
                     <metric>10</metric>
-                    <destination>10.0.3.0/24</destination>
+                    <destination>10.0.0.0/8</destination>
                     <route-table>
                       <unicast/>
                     </route-table>
@@ -444,20 +465,110 @@
                     </route-table>
                   </entry>
                   <entry name="Web">
-                    <path-monitor>
-                      <enable>no</enable>
-                      <failure-condition>any</failure-condition>
-                      <hold-time>2</hold-time>
-                    </path-monitor>
                     <nexthop>
                       <ip-address>10.0.2.1</ip-address>
                     </nexthop>
                     <bfd>
                       <profile>None</profile>
                     </bfd>
+                    <path-monitor>
+                      <enable>no</enable>
+                      <failure-condition>any</failure-condition>
+                      <hold-time>2</hold-time>
+                    </path-monitor>
                     <interface>ethernet1/2</interface>
                     <metric>10</metric>
                     <destination>10.0.3.0/24</destination>
+                    <route-table>
+                      <unicast/>
+                    </route-table>
+                  </entry>
+                  <entry name="onpremis">
+                    <nexthop>
+                      <next-vr>VPN</next-vr>
+                    </nexthop>
+                    <bfd>
+                      <profile>None</profile>
+                    </bfd>
+                    <path-monitor>
+                      <enable>no</enable>
+                      <failure-condition>any</failure-condition>
+                      <hold-time>2</hold-time>
+                    </path-monitor>
+                    <metric>10</metric>
+                    <destination>172.16.0.0/12</destination>
+                    <route-table>
+                      <unicast/>
+                    </route-table>
+                  </entry>
+                </static-route>
+              </ip>
+            </routing-table>
+          </entry>
+          <entry name="VPN">
+            <ecmp>
+              <algorithm>
+                <ip-modulo/>
+              </algorithm>
+            </ecmp>
+            <protocol>
+              <bgp>
+                <routing-options>
+                  <graceful-restart>
+                    <enable>yes</enable>
+                  </graceful-restart>
+                </routing-options>
+                <enable>no</enable>
+              </bgp>
+              <rip>
+                <enable>no</enable>
+              </rip>
+              <ospf>
+                <enable>no</enable>
+              </ospf>
+              <ospfv3>
+                <enable>no</enable>
+              </ospfv3>
+            </protocol>
+            <interface>
+              <member>ethernet1/3</member>
+            </interface>
+            <routing-table>
+              <ip>
+                <static-route>
+                  <entry name="Vnets">
+                    <nexthop>
+                      <next-vr>Trust</next-vr>
+                    </nexthop>
+                    <bfd>
+                      <profile>None</profile>
+                    </bfd>
+                    <path-monitor>
+                      <enable>no</enable>
+                      <failure-condition>any</failure-condition>
+                      <hold-time>2</hold-time>
+                    </path-monitor>
+                    <metric>10</metric>
+                    <destination>10.0.0.0/8</destination>
+                    <route-table>
+                      <unicast/>
+                    </route-table>
+                  </entry>
+                  <entry name="Health Probe">
+                    <path-monitor>
+                      <enable>no</enable>
+                      <failure-condition>any</failure-condition>
+                      <hold-time>2</hold-time>
+                    </path-monitor>
+                    <nexthop>
+                      <ip-address>10.0.3.1</ip-address>
+                    </nexthop>
+                    <bfd>
+                      <profile>None</profile>
+                    </bfd>
+                    <interface>ethernet1/3</interface>
+                    <metric>10</metric>
+                    <destination>168.63.129.16/32</destination>
                     <route-table>
                       <unicast/>
                     </route-table>
@@ -583,6 +694,13 @@
                 </layer3>
               </network>
             </entry>
+            <entry name="VPN">
+              <network>
+                <layer3>
+                  <member>ethernet1/3</member>
+                </layer3>
+              </network>
+            </entry>
           </zone>
           <service/>
           <service-group/>
@@ -674,6 +792,7 @@
               <interface>
                 <member>ethernet1/1</member>
                 <member>ethernet1/2</member>
+                <member>ethernet1/3</member>
               </interface>
             </network>
           </import>
