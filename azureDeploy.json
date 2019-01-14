@@ -55,7 +55,7 @@
             "metadata": {
                 "description": "Name of the Virtual Network (VNET)"
             },
-            "defaultValue": "NET-Demo"
+            "defaultValue": ""
         },
         "virtualNetworkAddressPrefix": {
             "type": "string",
@@ -129,7 +129,7 @@
         },
         "protectedSubnetAddressPrefix": {
             "type": "string",
-            "defaultValue": "10.0.3.0/24",
+            "defaultValue": "10.0.4.100",
             "metadata": {
                 "description": "Protected Subnet address CIDR"
             }
