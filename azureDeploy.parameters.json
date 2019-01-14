@@ -37,7 +37,7 @@
     },
     "vpnSubnetAddressPrefix": {
       "value": "10.0.3.0/24"
-      }
+      
   },
     "trustSubnetAddressPrefix": {
       "value": "10.0.2.0/24"
@@ -64,3 +64,4 @@
       "value": "yes"
     }
   }
+}
