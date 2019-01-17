@@ -60,7 +60,7 @@
       "value": "paloalto"
     },
     "Password": {
-      "value": "PaloAlt0!123!!"
+      "value": ""
     },
     "sourcePublicAddress": {
       "value": "0.0.0.0/0"
